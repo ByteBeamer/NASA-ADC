@@ -1,108 +1,105 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Security.Cryptography;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class CameraController : MonoBehaviour
 {
     private float panSpeed = 5f;
+    private float moveSpeed = 5f;
     private float scrollScale = 1f;
     private float sensitivity = 3f;
     public Transform target;
     public Boolean following;
 
+    private float distance = 5f;
     public Vector3 cameraOffset;
-
-    public float smoothSpeed = 0.125f;
 
     void Start()
     {
         cameraOffset = new Vector3(5, 0, 0);
     }
 
-    void Update()
+    public void setFollowing(bool follow)
     {
+        following = follow;
+    }
 
+    void LateUpdate()
+    {
         if (following)
         {
-            Vector3 desiredPosition = target.position + cameraOffset;
-            Vector3 smoothedPosition = Vector3.Lerp(transform.position, desiredPosition, smoothSpeed);
-            transform.position = smoothedPosition;
+            float amount = 0 - Input.mouseScrollDelta.y * scrollScale;
+            distance += amount;
+            if (distance < 3) distance = 3; else if (distance > 20) distance = 20;
 
-            transform.LookAt(target);
+            Vector3 position = target.position + cameraOffset;
 
+            transform.position = position;
             var old = transform.position;
+
+            float movementX = 0, movementY = 0;
             if (Input.GetMouseButton(1))
             {
-                transform.RotateAround(target.transform.position,
-                                                transform.up,
-                                                -Input.GetAxis("Mouse X") * panSpeed);
-
-                transform.RotateAround(target.transform.position,
-                                                transform.right,
-                                                Input.GetAxis("Mouse Y") * panSpeed);
+                movementX = Input.GetAxis("Mouse X") * panSpeed;
+                movementY = -Input.GetAxis("Mouse Y") * panSpeed;
             }
-
+            transform.RotateAround(target.position, Vector3.up, movementX);
+            transform.RotateAround(target.position, Vector3.right, movementY);
             cameraOffset += (old - transform.position);
+            cameraOffset = ClampMagnitude(transform.position - target.position, distance, distance);
+
+            transform.LookAt(target);
             return;
         }
+
         Vector3 pos = new Vector3(0, 0, 0);
         Quaternion rot = transform.rotation;
-
-
-        if (Input.GetMouseButton(0))
-        {
-            Debug.Log("Pressed left click.");
-            //While empty
-        }
 
         if (Input.GetMouseButton(1))
         {
             float mouseY = Input.GetAxis("Mouse Y") * sensitivity;
             float mouseX = Input.GetAxis("Mouse X") * sensitivity;
             rot = Quaternion.Euler(rot.eulerAngles.x - mouseY, rot.eulerAngles.y + mouseX, rot.eulerAngles.z);
-
-            //Debug.Log("x:" + rot.eulerAngles.x + ";  y:" + rot.eulerAngles.y + ";  z:" + rot.eulerAngles.z);
         }
 
         if (Input.GetKey("w"))
         {
-            pos.z = 0 + panSpeed * Time.deltaTime;
+            pos += transform.forward * moveSpeed * Time.deltaTime;
         }
         else if (Input.GetKey("s"))
         {
-            pos.z = 0 - panSpeed * Time.deltaTime;
+            pos += -transform.forward * moveSpeed * Time.deltaTime;
         }
 
         if (Input.GetKey("a"))
         {
-            pos.x = 0 - panSpeed * Time.deltaTime;
+            pos += -transform.right * moveSpeed * Time.deltaTime;
         }
         else if (Input.GetKey("d"))
         {
-            pos.x = 0 + panSpeed * Time.deltaTime;
+            pos += transform.right * moveSpeed * Time.deltaTime;
         }
 
-        pos.y = 0 - Input.mouseScrollDelta.y * scrollScale;
-
-        pos = BasisRotate(pos, rot);
+        moveSpeed -= 0 - Input.mouseScrollDelta.y * scrollScale;
+        Debug.Log(moveSpeed);
 
         transform.position += pos;
         transform.rotation = rot;
     }
 
-    private Vector3 BasisRotate(Vector3 posIn, Quaternion rot)
+    public static Vector3 ClampMagnitude(Vector3 v, float max, float min)
     {
-        Vector3 posOut = new Vector3(0, 0, 0);
+        double sm = v.sqrMagnitude;
+        if (sm > (double)max * (double)max) return v.normalized * max;
+        else if (sm < (double)min * (double)min) return v.normalized * min;
+        return v;
+    }
 
-        posOut.x = posIn.z * Mathf.Sin(rot.eulerAngles.y * Mathf.PI / 180)
-                 + posIn.x * Mathf.Cos(rot.eulerAngles.y * Mathf.PI / 180);
-
-        posOut.y = posIn.y;
-
-        posOut.z = posIn.z * Mathf.Cos(rot.eulerAngles.y * Mathf.PI / 180)
-                 - posIn.x * Mathf.Sin(rot.eulerAngles.y * Mathf.PI / 180);
-
-        return posOut;
+    public float getMoveSpeed()
+    {
+        return moveSpeed;
     }
 }

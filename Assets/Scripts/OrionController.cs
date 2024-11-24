@@ -5,58 +5,131 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text.RegularExpressions;
+using Unity.VisualScripting.Antlr3.Runtime.Tree;
 using UnityEngine;
 using UnityEngine.UIElements;
 using UnityEngine.Windows;
+using static UnityEditor.PlayerSettings;
 
 public class OrionController : MonoBehaviour
 {
     protected float counter = 0;
-    protected int timePassed = 0;
+    protected float lastFrame = 0;
+    protected int timePassed = 1;
     protected string[][] data;
-    public int scale = 10000;
+    public int positionScale = 100;
+    public float timeScale = 10;
+    public int pointFrequency = 1;
     public string filePath = @"D:\Documents\UnityProjects\NASA ADC\Assets\PathData.csv";
+    //public float fixedSize = .001f;
+    public Camera mainCamera;
 
-    public float fixedSize = .001f;
-    public Camera camera;
+    [SerializeField] private AnimationCurve easingCurve;
+
+    public GameObject pointPrefab;
 
     void Start()
     {
         data = System.IO.File.ReadLines(filePath).Select(x => x.Split(',')).ToArray();
+        transform.position = getPosition(timePassed);
     }
 
-    // Update is called once per frame
     void Update()
     {
+        counter += Time.deltaTime * timeScale;
+        TimeSpan lastTime;
+        try
+        {
+            lastTime = TimeSpan.FromMinutes(float.Parse(data[timePassed - 1][0], CultureInfo.InvariantCulture));
+        } catch {
+            lastTime = TimeSpan.Zero;
+        }
+        TimeSpan currentTime = TimeSpan.FromMinutes(float.Parse(data[timePassed][0], CultureInfo.InvariantCulture));
 
-        fixedSize += UnityEngine.Input.mouseScrollDelta.y / 10000;
-
-        if (fixedSize < .0001f) fixedSize = .0001f;
-
-        counter += Time.deltaTime;
-
-        if (counter >= 5)
+        if (counter >= currentTime.TotalSeconds)
         {
             timePassed += 1;
-            //RESET Counter
-            counter = 0;
+            if (pointFrequency != 0 && timePassed % pointFrequency == 0) { 
+                Vector3 pointPosition = getPosition(timePassed);
+                GameObject point = GameObject.Instantiate(pointPrefab);
+                point.transform.position = pointPosition;
+                point.transform.localScale = Vector3.one * 100;
+            }
+        }
+        Vector3 position = getPosition(timePassed), nextPosition = getPosition(timePassed + 1), lastPosition = getPosition(timePassed - 1);
+
+        float factor = easingCurve.Evaluate(remap(counter, Convert.ToSingle(lastTime.TotalSeconds), Convert.ToSingle(currentTime.TotalSeconds), 0, 1));
+        //Debug.Log(counter +  " " + Convert.ToSingle(lastTime.TotalSeconds) + " " + Convert.ToSingle(currentTime.TotalSeconds));
+        //Debug.Log(factor);
+        transform.position = Vector3.Lerp(position, nextPosition, factor);
+        //Rotate along path
+        transform.LookAt(Vector3.Lerp(nextPosition, getPosition(timePassed + 2), factor));
+        transform.Rotate(90, 0, 0, Space.Self);
+    }
+
+    public Vector3 getPosition(int time)
+    {
+       return new Vector3(float.Parse(data[time][1], CultureInfo.InvariantCulture) / positionScale, float.Parse(data[time][2], CultureInfo.InvariantCulture) / positionScale, float.Parse(data[time][3], CultureInfo.InvariantCulture) / positionScale);
+    }
+
+    public float remap(float x, float oMin, float oMax, float nMin, float nMax) { 
+        if (oMin == oMax) {
+            return 0;
         }
 
-        if (!(timePassed < data[1].Length)) return;
-        //these indexes are for velocity (pretty sure)
-        float x = float.Parse(data[1][timePassed], CultureInfo.InvariantCulture) / scale, y = float.Parse(data[2][timePassed], CultureInfo.InvariantCulture) / scale, z = float.Parse(data[3][timePassed], CultureInfo.InvariantCulture) / scale;
-        float xNext = float.Parse(data[1][timePassed + 1], CultureInfo.InvariantCulture) / scale, yNext = float.Parse(data[2][timePassed + 1], CultureInfo.InvariantCulture) / scale, zNext = float.Parse(data[3][timePassed + 1], CultureInfo.InvariantCulture) / scale;
-        transform.position += new Vector3(x, y, z);
-        
-        //Rotate along path
-        transform.LookAt(new Vector3(xNext, yNext, zNext));
-        transform.Rotate(-90, 0, 0, Space.Self);
-        //Debug.Log(data[1][timePassed] + ":" + data[2][timePassed] + ":" + data[3][timePassed]);
+        if (nMin == nMax){
+            return 0;
+        }
 
+        bool reverseInput = false;
+        float oldMin = Math.Min(oMin, oMax);
+        float oldMax = Math.Max(oMin, oMax);
+        if (oldMin != oMin) {
+            reverseInput = true;
+        }
 
-        var distance = (camera.transform.position - transform.position).magnitude;
-        var size = distance * fixedSize * camera.fieldOfView;
-        transform.localScale = Vector3.one * size;
+        bool reverseOutput = false;
+        float newMin = Math.Min(nMin, nMax);
+        float newMax = Math.Max(nMin, nMax);
+        if (newMin != nMin) { 
+            reverseOutput = true;
+        }
+
+        float portion = (x - oldMin) * (newMax - newMin) / (oldMax - oldMin);
+        if (reverseInput) {
+            portion = (oldMax - x) * (newMax - newMin) / (oldMax - oldMin);
+        }
+        float result = portion + newMin;
+        if (reverseOutput) { 
+            result = newMax - portion;
+        }
+        return result;
+    }
+
+    public void setTimeScale(string scale)
+    {
+        timeScale = float.Parse(scale);
+    }
+
+    public float getTimeScale()
+    {
+        return timeScale;
+    }
+
+    public TimeSpan getCurrentTime()
+    {
+        return TimeSpan.FromMinutes(float.Parse(data[0][timePassed], CultureInfo.InvariantCulture));
+    }
+
+    public float getPositionScale()
+    {
+        return positionScale;
+    }
+
+    public Vector3 getTruePosition()
+    {
+        return new Vector3(float.Parse(data[timePassed][1], CultureInfo.InvariantCulture), float.Parse(data[timePassed][2], CultureInfo.InvariantCulture), float.Parse(data[timePassed][3], CultureInfo.InvariantCulture));
     }
 }
