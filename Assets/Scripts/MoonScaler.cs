@@ -4,16 +4,11 @@ using UnityEngine;
 
 public class MoonScaler : MonoBehaviour
 {
-    // Start is called before the first frame update
+    [SerializeField] OrionController orion;
     void Start()
     {
-        //position scale is 10 for the value below
-        Vector3 moonPos = new Vector3(-37899, -13061, -6261);
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
+        float scale = orion.getPositionScale();
+        transform.localScale = (transform.localScale * 1000) / scale;
+        transform.position = (transform.position * 10) / scale;
     }
 }

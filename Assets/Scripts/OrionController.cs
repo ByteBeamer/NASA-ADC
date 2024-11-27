@@ -132,4 +132,14 @@ public class OrionController : MonoBehaviour
     {
         return new Vector3(float.Parse(data[timePassed][1], CultureInfo.InvariantCulture), float.Parse(data[timePassed][2], CultureInfo.InvariantCulture), float.Parse(data[timePassed][3], CultureInfo.InvariantCulture));
     }
+
+    public Dictionary<string, bool> getCurrentAntennas()
+    {
+        var opts = new Dictionary<string, bool>();
+        opts.Add("WPSA", (data[timePassed][7] == "1") ? true : false);
+        opts.Add("DS54", (data[timePassed][9] == "1") ? true : false);
+        opts.Add("DS24", (data[timePassed][11] == "1") ? true : false);
+        opts.Add("DS34", (data[timePassed][13] == "1") ? true : false);
+        return opts;
+    }
 }
