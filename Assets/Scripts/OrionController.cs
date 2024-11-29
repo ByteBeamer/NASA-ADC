@@ -51,11 +51,20 @@ public class OrionController : MonoBehaviour
         if (counter >= currentTime.TotalSeconds)
         {
             timePassed += 1;
-            if (pointFrequency != 0 && timePassed % pointFrequency == 0) { 
-                Vector3 pointPosition = getPosition(timePassed);
+            if (pointFrequency != 0 && timePassed % pointFrequency == 0) {
                 GameObject point = GameObject.Instantiate(pointPrefab);
-                point.transform.position = pointPosition;
-                point.transform.localScale = Vector3.one * 100;
+                StaticSize script = point.GetComponent<StaticSize>();
+                script.setPoints(getPosition(timePassed - pointFrequency), getPosition(timePassed));
+                if (getCurrentTime().TotalMinutes >= 1492.277)
+                {
+                    script.setColor(new Color(24, 167, 235) / 255);
+                } else if (getCurrentTime().TotalMinutes >= 196.6495)
+                {
+                    script.setColor(new Color(138, 189, 62) / 255);
+                } else if (getCurrentTime().TotalMinutes >= 118.0945)
+                {
+                    script.setColor(new Color(254, 146, 11) / 255);
+                }
             }
         }
         Vector3 position = getPosition(timePassed), nextPosition = getPosition(timePassed + 1), lastPosition = getPosition(timePassed - 1);
@@ -120,7 +129,7 @@ public class OrionController : MonoBehaviour
 
     public TimeSpan getCurrentTime()
     {
-        return TimeSpan.FromMinutes(float.Parse(data[0][timePassed], CultureInfo.InvariantCulture));
+        return TimeSpan.FromMinutes(float.Parse(data[timePassed][0], CultureInfo.InvariantCulture));
     }
 
     public float getPositionScale()
@@ -136,10 +145,10 @@ public class OrionController : MonoBehaviour
     public Dictionary<string, bool> getCurrentAntennas()
     {
         var opts = new Dictionary<string, bool>();
-        opts.Add("WPSA", (data[timePassed][7] == "1") ? true : false);
-        opts.Add("DS54", (data[timePassed][9] == "1") ? true : false);
-        opts.Add("DS24", (data[timePassed][11] == "1") ? true : false);
-        opts.Add("DS34", (data[timePassed][13] == "1") ? true : false);
+        opts.Add("WPSA", (data[timePassed][8] == "1") ? true : false);
+        opts.Add("DS54", (data[timePassed][10] == "1") ? true : false);
+        opts.Add("DS24", (data[timePassed][12] == "1") ? true : false);
+        opts.Add("DS34", (data[timePassed][14] == "1") ? true : false);
         return opts;
     }
 }
