@@ -1,10 +1,14 @@
-using System.Collections;
-using System.Collections.Generic;
-using System.Drawing;
 using UnityEngine;
 
-public class StaticSize : MonoBehaviour
+public class PathScript : MonoBehaviour
 {
+    Renderer renderer;
+
+    void Start()
+    {
+        renderer = GetComponent<Renderer>();
+    }
+
     void Update()
     {
         var distance = (Camera.main.transform.position - transform.position).magnitude;
@@ -13,11 +17,6 @@ public class StaticSize : MonoBehaviour
             var size = distance * 0.00001f * Camera.main.fieldOfView;
             transform.localScale = new Vector3(size, transform.localScale.y, size);
         }
-
-        //if (distance < 50)
-        //{
-        //    GetComponent<Renderer>().material.color.a = solidDistance / dist;
-        //}
     }
 
     private Quaternion offset = Quaternion.Euler(-90, 0, 0);
@@ -42,15 +41,14 @@ public class StaticSize : MonoBehaviour
         transform.localScale = scale;
     }
 
+    public void setColor(Color color)
+    {
+        renderer.material.SetColor("_Color", color);
+    }
+
     public Vector3 LerpByDistance(Vector3 A, Vector3 B, float x)
     {
         Vector3 P = x * Vector3.Normalize(B - A) + A;
         return P;
-    }
-
-    public void setColor(UnityEngine.Color color)
-    {
-        var renderer = GetComponent<Renderer>();
-        renderer.material.SetColor("_Color", color);
     }
 }

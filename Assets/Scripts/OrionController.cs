@@ -17,14 +17,17 @@ public class OrionController : MonoBehaviour
 {
     protected float counter = 0;
     protected float lastFrame = 0;
-    protected int timePassed = 1;
     protected string[][] data;
+    public int timePassed = 1;
     public int positionScale = 100;
     public float timeScale = 10;
     public int pointFrequency = 1;
     public string filePath = @"D:\Documents\UnityProjects\NASA ADC\Assets\PathData.csv";
-    //public float fixedSize = .001f;
     public Camera mainCamera;
+    OrionAnimator orionAnimator;
+    public GameObject pathParent;
+
+    bool openedPanels = false, startedLanding = false, detachedBottom = false;
 
     [SerializeField] private AnimationCurve easingCurve;
 
@@ -34,6 +37,7 @@ public class OrionController : MonoBehaviour
     {
         data = System.IO.File.ReadLines(filePath).Select(x => x.Split(',')).ToArray();
         transform.position = getPosition(timePassed);
+        orionAnimator = GetComponent<OrionAnimator>();
     }
 
     void Update()
@@ -46,24 +50,33 @@ public class OrionController : MonoBehaviour
         } catch {
             lastTime = TimeSpan.Zero;
         }
-        TimeSpan currentTime = TimeSpan.FromMinutes(float.Parse(data[timePassed][0], CultureInfo.InvariantCulture));
+        TimeSpan currentTime;
+        try { 
+            currentTime = TimeSpan.FromMinutes(float.Parse(data[timePassed][0], CultureInfo.InvariantCulture));
+        } catch
+        {
+            currentTime = TimeSpan.FromMinutes(float.Parse(data[data.Length - 1][0], CultureInfo.InvariantCulture));
+            if (!startedLanding) StartCoroutine(orionAnimator.DetachMiddle()); startedLanding = true;
+        }
 
         if (counter >= currentTime.TotalSeconds)
         {
             timePassed += 1;
             if (pointFrequency != 0 && timePassed % pointFrequency == 0) {
-                GameObject point = GameObject.Instantiate(pointPrefab);
-                StaticSize script = point.GetComponent<StaticSize>();
-                script.setPoints(getPosition(timePassed - pointFrequency), getPosition(timePassed));
+                GameObject point = Instantiate(pointPrefab, pathParent.transform);
+                PathScript pathScript = point.GetComponent<PathScript>();
+                pathScript.setPoints(getPosition(timePassed - pointFrequency), getPosition(timePassed));
                 if (getCurrentTime().TotalMinutes >= 1492.277)
                 {
-                    script.setColor(new Color(24, 167, 235) / 255);
+                    //pathScript.setColor(new Color(24, 167, 235) / 255);
                 } else if (getCurrentTime().TotalMinutes >= 196.6495)
                 {
-                    script.setColor(new Color(138, 189, 62) / 255);
+                    if (!detachedBottom) StartCoroutine(orionAnimator.DetachBottom()); detachedBottom = true;
+                    //pathScript.setColor(new Color(138, 189, 62) / 255);
                 } else if (getCurrentTime().TotalMinutes >= 118.0945)
                 {
-                    script.setColor(new Color(254, 146, 11) / 255);
+                    if (!openedPanels) orionAnimator.OpenSolarPanels(); openedPanels = true;
+                    //pathScript.setColor(new Color(254, 146, 11) / 255);
                 }
             }
         }
